@@ -56,7 +56,8 @@ def split_data(data_dir, csv_file):
 
 
     split_folders.ratio(path + 'input/', output=output_dir, seed = 10, ratio=(.8, .1, .1))
-
+    
+'''
 def download_from_S3(prefix, local, bucket, client=s3_client):
     """
     params:
@@ -94,6 +95,7 @@ def download_from_S3(prefix, local, bucket, client=s3_client):
         if not os.path.exists(os.path.dirname(dest_pathname)):
             os.makedirs(os.path.dirname(dest_pathname))
         client.download_file(bucket, k, dest_pathname)
+'''
 
 def DataLoader(path):
 

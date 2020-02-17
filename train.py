@@ -1,3 +1,4 @@
+import tensorflow as tf
 import keras
 from keras import backend as K
 from keras.layers.core import Dense, Activation
@@ -18,6 +19,8 @@ import matplotlib.pyplot as plt
 from glob import glob
 import os
 import argparse
+from pathlib import Path
+
 TF_CPP_MIN_LOG_LEVEL=2
 
 #TODO: Perform automatic training, validation split from one folder
@@ -127,17 +130,19 @@ def saving_model(save_dir, model, classes, tflite_model):
     classes: class labels
     tflite_model: save model in tflite format
     '''
-
-    model.save(save_dir)
-    f = open(save_dir + "recyclesort_labels.txt", "w")
+    save_in = os.path.join(save_dir, "model.h5")
+    save_classes_in = os.path.join(save_dir, "recyclesort_labels.txt")
+    save_tflite_in = os.path.join(save_dir, "recyclesort_weights.tflite")
+    model.save(save_in)
+    f = open(save_classes_in, "w")
     for label in classes:
         f.write(label + "\n")
     f.close()
 
     if tflite_model:
-        converter = lite.TFLiteConverter.from_keras_model_file(save_dir + "recyclesort_labels.txt")
+        converter = tf.lite.TocoConverter.from_keras_model_file(save_in)
         tfmodel = converter.convert()
-        open ("recyclesort_weights.tflite" , "wb").write(tfmodel)
+        open(save_tflite_in , "wb").write(tfmodel)
 
 def visualize_training_performance(history):
     '''
@@ -173,7 +178,7 @@ def visualize_training_performance(history):
 
 
 parser = argparse.ArgumentParser(description='Train')
-parser.add_argument('--train_dir', type=str, default='C:\\BDBI\\all_dataset\\TrashNet_dataset\\Current_categories\\Train\\Train',
+parser.add_argument('--train_dir', type=str, default='BDBI/all_dataset/MainDataFolder/Train',
                     help='Directory where training data is stored')
 parser.add_argument('--val_dir', type=str, default='',
                     help='Directory where validation data is stored')
@@ -185,19 +190,22 @@ parser.add_argument('--visualize_model', type=bool, default=False,
                     help='Visualize training performance')
 parser.add_argument('--visualize_performance', type=bool, default=False,
                     help='Visualize training performance')
-parser.add_argument('--epochs', type=int, default=3,
+parser.add_argument('--epochs', type=int, default=1,
                     help='Number of epochs')
 parser.add_argument('--save_model', type=bool, default=True,
                     help='Save model?')
-parser.add_argument('--save_dir', type=str, default='C:\\BDBI\\Prototype\\Train\\weights\\recyclesort_weights.h5',
+parser.add_argument('--save_dir', type=str, default='BDBI/all_dataset/MainDataFolder/Weights/',
                     help='Directory to save model')
-parser.add_argument('--tflite', type=bool, default=False,
+parser.add_argument('--tflite', type=bool, default=True,
                     help='save in .tflite format')
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    train_data, validation_data = prepare_data(args.train_dir, args.val_dir)
+    os.chdir("../")
+    train_data_folder = Path(args.train_dir)
+    save_weights_folder = Path(args.save_dir)
+    train_data, validation_data = prepare_data(train_data_folder, args.val_dir)
     NNmodel = NN_model(args.model,  args.freeze, args.visualize_model)
     trained_model = train(NNmodel, args.epochs, train_data, validation_data, args.visualize_performance)
     if args.save_model:
-        saving_model(args.save_dir, trained_model, os.listdir(args.train_dir), args.tflite)
+        saving_model(save_weights_folder, trained_model, os.listdir(train_data_folder), args.tflite)
