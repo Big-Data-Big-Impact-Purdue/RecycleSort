@@ -1,0 +1,6 @@
+language: python
+python:
+  - "3.6.9"
+install:
+  - pip install -r requirement.txt
+script: echo "Running dataloader.py" || python dataloader.py
