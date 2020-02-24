@@ -4,3 +4,6 @@ python:
 install:
   - pip install -r requirement.txt
 script: echo "Running dataloader.py" || python dataloader.py
+notifications:
+  email:
+    - jang88@purdue.edu
