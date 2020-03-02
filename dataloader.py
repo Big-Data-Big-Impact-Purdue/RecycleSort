@@ -1,12 +1,13 @@
 import os
 import shutil
 import matplotlib.pyplot as plt
-from keras.preprocessing import image
+#from keras.preprocessing import image
 import numpy as np
 import pandas as pd
 import random
 import split_folders
 import boto3
+
 
 
 def create_directories(path):
@@ -35,71 +36,57 @@ def create_directories(path):
 
 
 
-def split_data(data_dir, csv_file):
-    ImageLabels = pd.read_csv(data_dir + '/' + csv_file, header=None)
-    ImageDir = {}
+def split_data(data_dir, csv_file, client):
+    ImageLabels = pd.read_csv(csv_file, header=None)
     path = data_dir + '/'
     output_dir = path + "output/"
     dictImageLabels = {}
-    filenames = []
     create_directories(path)
-
+    count_dict = {}
 
     for row in ImageLabels.index:
         dictImageLabels[ImageLabels[0][row]] = ImageLabels[1][row]
+        if ImageLabels[1][row] not in count_dict:
+            count_dict[ImageLabels[1][row]] = 1
+        else:
+            count_dict[ImageLabels[1][row]] += 1
+    print (count_dict)
+    bucket = 'firstpythonbucket70889483-b408-41b1-b2d4-d677152cedb0'
+    min_count = min(count_dict["PlasticBottles"], count_dict["MetalCans"])
+    count_bottle = 0
+    count_can = 0
+    for f in dictImageLabels:
+        df = path + f
+        if dictImageLabels[f] == 'PlasticBottles' and count_bottle < min_count:
+            client.Bucket(bucket).download_file(df, df)
+            count_bottle += 1
+        elif dictImageLabels[f] == 'MetalCans' and count_can < min_count:
+            count_can += 1
+            client.Bucket(bucket).download_file(df, df)
 
-    for f in filenames:
-        if dictImageLabels[f] == 'PlasticBottles':
-            shutil.copyfile(path + 'data/' + f, 'input/PlasticBottles/'+f)
-        elif dictImageLabels[f] == 'MetalCans':
-            shutil.copyfile(path + 'data/' + f, 'input/MetalCans/'+f)
 
 
-    split_folders.ratio(path + 'input/', output=output_dir, seed = 10, ratio=(.8, .1, .1))
+    #split_folders.ratio(path + 'input/', output=output_dir, seed = 10, ratio=(.8, .1, .1))
+
+
+def download_from_S3(labels_file, prefix, local_folder, bucket, client):
+
+
+    client.Bucket(bucket).download_file(labels_file, labels_file)
+    try:
+        os.mkdir('Test_images')
+    except FileExistsError:
+        pass
+    split_data('Test_images', labels_file, client)
+    '''
     
-'''
-def download_from_S3(prefix, local, bucket, client=s3_client):
-    """
-    params:
-    - prefix: pattern to match in s3
-    - local: local path to folder in which to place files
-    - bucket: s3 bucket with target contents
-    - client: initialized s3 client object
-    """
-    keys = []
-    dirs = []
-    next_token = ''
-    base_kwargs = {
-        'Bucket':bucket,
-        'Prefix':prefix,
-    }
-    while next_token is not None:
-        kwargs = base_kwargs.copy()
-        if next_token != '':
-            kwargs.update({'ContinuationToken': next_token})
-        results = client.list_objects_v2(**kwargs)
-        contents = results.get('Contents')
-        for i in contents:
-            k = i.get('Key')
-            if k[-1] != '/':
-                keys.append(k)
-            else:
-                dirs.append(k)
-        next_token = results.get('NextContinuationToken')
-    for d in dirs:
-        dest_pathname = os.path.join(local, d)
-        if not os.path.exists(os.path.dirname(dest_pathname)):
-            os.makedirs(os.path.dirname(dest_pathname))
-    for k in keys:
-        dest_pathname = os.path.join(local, k)
-        if not os.path.exists(os.path.dirname(dest_pathname)):
-            os.makedirs(os.path.dirname(dest_pathname))
-        client.download_file(bucket, k, dest_pathname)
-'''
-
-def DataLoader(path):
-
-    pass
+    bucket_obj = client.Bucket(bucket)
+    for obj in bucket_obj.objects.all():
+        try:
+            client.Object(bucket, obj.key).download_file(obj.key)
+        except FileExistsError:
+            pass
+    '''
 
 
 class TestDataLoader():
@@ -142,10 +129,9 @@ class TestDataLoader():
 
         return images
 
-print (os.getcwd())
 
-#s3_client = boto3.client('s3')
-#download_from_S3(s3_client)
+s3_client = boto3.resource('s3')
+download_from_S3('image_labels.csv', 'Test_images', '', 'firstpythonbucket70889483-b408-41b1-b2d4-d677152cedb0', s3_client)
 
 #os.chdir("../")
 #split_data(os.getcwd(), "image_labels.csv")
